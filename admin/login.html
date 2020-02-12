@@ -15,6 +15,8 @@
   <script src="./libs/jquery-1.12.4.min.js"></script>
   <!-- 引入bootstrap的js文件 -->
   <script src="./libs/bootstrap/js/bootstrap.min.js"></script>
+  <!-- 引入http的js文件 -->
+  <script src="./libs/http.js"></script>
 </head>
 
 <body>
@@ -71,7 +73,7 @@
         }
         $.ajax({
           type: 'post',
-          url: 'http://localhost:8080/api/v1/admin/user/login',
+          url: BigNew.user_login,
           data: {
             username: username,
             password: password
@@ -81,7 +83,7 @@
               // alert('登录成功!');
               $('#myModal').modal();
               $('.modal-body').text('登录成功!');
-              localStorage.setItem('token',backData.token);
+              localStorage.setItem('token',backData.token)
               $('#myModal').on('hidden.bs.modal', function (e) {
                 window.location.href = './index.html';
               })

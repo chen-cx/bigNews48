@@ -68,6 +68,51 @@
             </form>
         </div>
     </div>
+
+    <script src="./libs/http.js"></script>
+    <script src="./js/user.js"></script>
+
+    <script>
+        $(function(){
+            // 一进入页面就加载详细信息
+            $.ajax({
+                type:'get',
+                url:BigNew.user_detail,
+                success:function(backData){
+                    for(let key in backData.data){
+                        $('input.'+key).val(backData.data[key]);
+                    }
+                    $('.user_pic').attr('src',backData.data.userPic);
+                }
+            })
+            // 预览图片
+            $('#exampleInputFile').on('change',function(){
+                let file1=this.files[0];
+                let url=URL.createObjectURL(file1);
+                $('.user_pic').attr('src',url);
+            })
+            // 修改信息
+            $('.btn-edit').on('click',function(e){
+                e.preventDefault();
+                let form1=document.querySelector('form');
+                let fd=new FormData(form1);
+                $.ajax({
+                    type:'post',
+                    url:BigNew.user_edit,
+                    data:fd,
+                    processData:false,
+                    contentType:false,
+                    success:function(backData){
+                        console.log(backData);
+                        if(backData.code==200){
+                           parent.window.location.reload();
+                        }
+                    }
+                })
+            })
+        })
+    </script>
+
 </body>
 
 </html>

@@ -44,13 +44,46 @@
                     <tr>
                         <td colspan="3" class="text-center">
                             <a href="javascript:void(0)" class="btn btn-success" id="xinzengfenlei" data-toggle="modal"
-                                data-target="#myModal">新增分类</a>
+                                data-target="#exampleModal">新增分类</a>
                         </td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
+
+    <!-- 模态框 -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="exampleModalLabel">新增分类</h4>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <!-- 隐藏域放id -->
+                        <input type="hidden" id="yincang" value="">
+                        <div class="form-group">
+                            <label for="recipient-name" class="control-label">分类名称</label>
+                            <input type="text" class="form-control" id="recipient-name">
+                        </div>
+                        <div class="form-group">
+                            <label for="message-text" class="control-label">分类别名</label>
+                            <input class="form-control" id="message-text">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button type="button" id="queding" class="btn">新增</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 
     <script src="./libs/http.js"></script>
     <script id="article_categor" type="text/Html">
@@ -59,26 +92,115 @@
                 <td>{{v.name}}</td>
                 <td>{{v.slug}}</td>
                 <td class="text-center">
-                    <a href="javascript:void(0)" data_id={{v.id}} data-toggle="modal" class=" btn btn-info btn-xs">编辑</a>
-                    <a href="javascript:void(0)" data_id={{v.id}} lass="btn btn-danger btn-xs">删除</a>
+                    <a href="javascript:void(0)" data_id={{v.id}} data-toggle="modal" data-target="#exampleModal" class=" btn btn-info btn-xs">编辑</a>
+                    <a href="javascript:void(0)" data_id={{v.id}} class="btn btn-danger btn-xs btn-delete">删除</a>
                 </td>
             </tr>
         {{/each}}
     </script>
     <script>
-        $(function(){
+        $(function () {
             $.ajax({
-                type:'get',
-                url:BigNew.category_list,
-                success:function(backData){
+                type: 'get',
+                url: BigNew.category_list,
+                success: function (backData) {
                     console.log(backData);
-                    if(backData.code==200){
-                        let resHtml=template('article_categor',backData);
+                    if (backData.code == 200) {
+                        let resHtml = template('article_categor', backData);
                         $('tbody').html(resHtml);
                     }
                 }
             })
+
+            $('#exampleModal').on('show.bs.modal', function (e) {
+                // do something...
+                // 判断点击的是新增还是编辑
+                // e.relatedTarget就是当前点击的按钮,是dom对象
+                if (e.relatedTarget == $('#xinzengfenlei')[0]) {
+                    // 点击新增
+                    $('#exampleModalLabel').text('新增分类');
+                    $('#queding').text('新增').addClass('btn-success').removeClass('btn-info');
+                    // 点击新增分类时清空表单
+                    $('form')[0].reset();
+                } else {
+                    // 点击编辑
+                    $('#exampleModalLabel').text('编辑');
+                    $('#queding').text('确认').addClass('btn-info').removeClass('btn-success');
+                    $('#recipient-name').val($(e.relatedTarget).parent().prev().prev().text());
+                    $('#message-text').val($(e.relatedTarget).parent().prev().text());
+                    $('#yincang').val($(e.relatedTarget).attr('data_id'));
+                }
+
+            })
+            // 编辑/新增设置点击事件
+            $('#queding').on('click', function () {
+                if ($(this).text() == '新增') {
+                    // 新增
+                    let name = $('#recipient-name').val().trim();
+                    let slug = $('#message-text').val().trim();
+                    $.ajax({
+                        type: 'post',
+                        url: BigNew.category_add,
+                        data: {
+                            name: name,
+                            slug: slug,
+                        },
+                        success: function (backData) {
+                            if (backData.code == 201) {
+                                alert('新增成功');
+                                window.location.reload();
+                            }
+                        }
+                    })
+                } else {
+                    // 编辑
+                    let username = $('#recipient-name').val().trim();
+                    let userslug = $('#message-text').val().trim();
+                    let id = $('#yincang').val();
+                    $.ajax({
+                        type: 'post',
+                        url: BigNew.category_edit,
+                        data: {
+                            name: username,
+                            slug: userslug,
+                            id: id,
+                        },
+                        success: function (backData) {
+                            if (backData.code == 200) {
+                                alert('编辑成功');
+                                window.location.reload();
+                            } else {
+                                alert('编辑失败');
+                            }
+                        }
+                    })
+                }
+
+            })
+
+            // 删除按钮
+            // 委托注册
+            $('tbody').on('click', '.btn-delete', function () {
+                if (confirm('确定删除?')) {
+                    let id = $(this).attr('data_id');
+                    $.ajax({
+                        type: 'post',
+                        url: BigNew.category_delete,
+                        data: {
+                            id:id
+                        },
+                        success: function (backData) {
+                            if (backData.code == 204) {
+                                alert('删除成功');
+                                window.location.reload();
+                            }
+                        }
+                    })
+                }
+
+            })
         })
     </script>
 </body>
+
 </html>

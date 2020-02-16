@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>文章列表</title>
+    <title>文章编辑</title>
     <link rel="stylesheet" href="./libs/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/iconfont.css">
@@ -14,6 +14,11 @@
     <script src="./libs/jquery-1.12.4.min.js"></script>
     <!-- 模板引擎 -->
     <script src="./libs/template-web.js"></script>
+    <!-- 时间插件 -->
+    <script src="./libs/jedate/js/jedate.js"></script>
+    <link rel="stylesheet" href="./libs/jedate/css/jedate.css">
+    <!-- 富文本编辑器 -->
+    <script src="./libs/wangEditor.js"></script>
 </head>
 
 <body>
@@ -50,12 +55,18 @@
                 </div>
                 <div class="form-group">
                     <label class="col-sm-2 control-label">发布时间：</label>
-                    <div class="col-sm-4">
+                    <div class="col-sm-4 jeinput">
+                        <input id="indate" name="date" type="text" placeholder="YYYY-MM-DD" class="jeinput">
+                        <div class="icons jebtns"
+                            onclick="jeDate('#testico',{trigger:false,format: 'YYYY-MM-DD',theme: { bgcolor: '#00A680', pnColor: '#00DDAA' }})">
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="inputEmail3" class="col-sm-2 control-label">文章内容：</label>
-                    <div class="col-sm-10">
+                    <div class="col-sm-10" id="editor">
+                        <p></p>
+
                     </div>
                 </div>
                 <div class="form-group">
@@ -66,7 +77,133 @@
                 </div>
             </form>
         </div>
+
     </div>
+
+    <script src="./libs/http.js"></script>
+    <!-- 文章类别的模板 -->
+    <script id="art_cate_temp" type="text/html">
+        {{each data v}}
+        <option value="{{v.id}}">{{v.name}}</option>
+        {{/each}}
+    </script>
+
+    <script>
+        $(function () {
+
+            // 时间插件
+            jeDate("#indate", {
+                zIndex: 20999,
+                theme: { bgcolor: "#00A680", pnColor: "#00DDAA" },//绿色主题
+                format: "YYYY-MM-DD",
+                isTime: false,
+                minData: "2014-09-19 00:00:00"
+            })
+
+            // 富文本编辑器
+            let E = window.wangEditor;
+            let editor = new E('#editor');
+            // 或者 var editor = new E( document.getElementById('editor') )
+            editor.create();
+
+            //图片预览
+            $('#inputCover').on('change', function () {
+                var fileIcon = this.files[0];
+                var url = URL.createObjectURL(fileIcon);
+                $(this).prev().attr('src', url);
+            });
+
+            // 获取所有文章类别
+            $.ajax({
+                type: "get",
+                url: BigNew.category_list,
+                success: function (backData) {
+                    if (backData.code == 200) {
+                        //通过模板引擎渲染到页面上
+                        var resHtml = template("art_cate_temp", backData);
+                        $("select.category").html(resHtml);
+                    }
+                }
+            });
+
+            // 获取文章id
+            let articleId = window.location.search.split('=')[1];
+            // setTimeout(function () {
+            // 进入页面时请求数据
+            $.ajax({
+                url: BigNew.article_search,
+                data: {
+                    id: articleId
+                },
+                success: function (backData) {
+                    //console.log(backData);
+                    if (backData.code == 200) {
+                        //3.把对应的详细信息显示在对应的标签上. 
+                        $('#inputTitle').val(backData.data.title); //文章标题   
+                        $('.article_cover').attr('src', backData.data.cover); //文章预览图
+                        $('select.category').val(backData.data.categoryId); //文章类别
+                        $('#testico').val(backData.data.date); //文章发布时间
+                        editor.txt.html(backData.data.content); //文章内容
+                    }
+                }
+            });
+            // }, 0);
+
+            // 修改
+            $('.btn-edit').on('click', function (e) {
+                e.preventDefault();
+                //创建fd对象
+                var fd = new FormData($('form')[0]);
+                //追加富文本编辑器中修改后的内容到fd对象中
+                fd.append('content', editor.txt.html());
+                //追加一个state键对应的值已发布到fd对象中
+                fd.append('state', '已发布');
+                // 追加要编辑的文章的id到fd对象中
+                fd.append('id', articleId);
+                //发送ajax请求
+                $.ajax({
+                    type: 'post',
+                    url: BigNew.article_edit,
+                    data: fd,
+                    contentType: false,
+                    processData: false,
+                    success: function (backData) {
+                        console.log(backData);
+                        if (backData.code == 200) {
+                            alert('修改成功');
+                            window.history.back();//回退
+                        }
+                    }
+                });
+            });
+            // 草稿
+            $('.btn-draft').on('click', function (e) {
+                e.preventDefault();
+                var fd = new FormData($('form')[0]);
+                //追加富文本编辑器 里面 修改后的文章内容  到fd对象中
+                fd.append('content', editor.txt.html());
+                //state参数默认为空,是存草稿
+                // 追加要编辑的文章的id到fd对象中
+                fd.append('id', articleId);
+                //发送ajax请求
+                $.ajax({
+                    type: 'post',
+                    url: BigNew.article_edit,
+                    data: fd,
+                    contentType: false,
+                    processData: false,
+                    success: function (backData) {
+                        console.log(backData);
+                        if (backData.code == 200) {
+                            alert('存为草稿成功');
+                            window.history.back();//回退
+                        }
+                    }
+                });
+            });
+
+        })
+    </script>
 </body>
 
 </html>

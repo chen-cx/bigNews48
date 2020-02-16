@@ -7,12 +7,15 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>文章列表</title>
     <link rel="stylesheet" href="./libs/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./libs/bootstrap/js/bootstrap.min.js">
     <link rel="stylesheet" href="./css/reset.css">
     <link rel="stylesheet" href="./css/iconfont.css">
     <link rel="stylesheet" href="./css/main.css">
     <script src="./libs/jquery-1.12.4.min.js"></script>
     <!-- 引入模板引擎js文件 -->
     <script src="./libs/template-web.js"></script>
+    <!-- 引入分页插件 -->
+    <script src="./libs/jquery.twbsPagination.js"></script>
 </head>
 
 <body>
@@ -69,9 +72,156 @@
                 </tbody>
             </table>
             <div class="row text-center">
+                <ul id="pagination-demo" class="pagination-sm"></ul>
             </div>
         </div>
     </div>
+
+    <script src="./libs/http.js"></script>
+
+    <!-- 下拉菜单模板 -->
+    <script type="text/html" id="category_list">
+        <option value="">所有分类</option>
+        {{ each data }}
+        <option value="{{$value.id}}">{{ $value.name }}</option>
+        {{ /each }}
+    </script>
+
+    <!-- 文章列表模板 -->
+    <script id="arti_list" type="text/html">
+        {{each data.data v}}
+        <tr>
+            <td>{{v.title}}</td>
+            <td>{{v.author}}</td>
+            <td>{{v.category}}</td>
+            <td class="text-center">{{v.date}}</td>
+            <td class="text-center">{{v.state}}</td>
+            <td class="text-center">
+                <a href="article_edit.html?id={{v.id}}" class="btn btn-default btn-xs">编辑</a>
+                <a href="javascript:void(0);" data-id="{{v.id}}" class="btn btn-danger btn-xs delete">删除</a>
+            </td>
+        </tr>
+        {{/each}}
+    </script>
+
+    <!-- 入口函数 -->
+    <script>
+        $(function () {
+            // 请求分类列表渲染到下拉菜单
+            $.ajax({
+                url: BigNew.category_list,
+                type: 'get',
+                dataType: 'json',
+                success: function (backData) {
+                    console.log(backData);
+                    //模板引擎渲染页面 
+                    $('#selCategory').html(template('category_list', backData));
+                }
+            });
+            
+            // 发表按钮
+            $('#release_btn').click(function () {
+                //$() :第一个参数：选择器  第二个参数：document，默认是当前窗口document
+                $('.level02>li:eq(1)', window.parent.document).addClass('active')
+                    .siblings()
+                    .removeClass('active');
+            });
+
+            //声明变量mypage,表示当前点击的数字.
+            var mypage = 1;
+            //发送ajax请求封装成一个函数.
+            function getData(mypage, callback) {
+                $.ajax({
+                    url: BigNew.article_query,
+                    data: {
+                        type: $('#selCategory').val().trim(), //获取文章类别
+                        state: $('#selStatus').val().trim(), //获取文章状态(草稿/已发布)
+                        page: mypage, //当前页数
+                        perpage: 6 //一页显示数
+                    },
+                    success: function (backData) {
+                        if (backData.code == 200) {
+                            //调用模板引擎核心方法
+                            var resHtml = template('arti_list', backData);
+                            $('tbody').html(resHtml);
+
+                            if (backData.data.data.length != 0 && callback != null) {
+                                $('#pagination-demo').show();
+                                $('#pagination-demo').next().hide();
+
+                                callback(backData); //调用回调函数,把返回来的数据backData作为实参传递.
+
+                            } else if (backData.data.totalPage == mypage - 1 && backData.data.data.length == 0) {
+                                mypage -= 1;
+                                //调用changeTotalPages方法,根据新的总页数重新生成分页结构. 
+                                $('#pagination-demo').twbsPagination('changeTotalPages',
+                                    backData.data.totalPage, mypage);
+                            } else if (backData.data.data.length == 0) {
+                                //分页插件结构要隐藏
+                                $('#pagination-demo').hide();
+                                $('#pagination-demo').next().show(); //没有数据
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 进入页面就要获取默认条件下的文章们并显示. 
+            getData(1, function (backData) {
+                //分页插件
+                $('#pagination-demo').twbsPagination({
+                    totalPages: backData.data.totalPage, //总页数
+                    visiblePages: 7,
+                    first: '首页',
+                    prev: '上一页',
+                    next: '下一页',
+                    last: '尾页',
+                    onPageClick: function (event, page) {
+                        mypage = page; //把当前点击的这一个页码给mypage赋值. 
+                        getData(page, null);
+                    }
+
+                });
+            });
+
+            //三:给筛选按钮设置点击事件,获取满足条件的文章们
+            $('#btnSearch').on('click', function (e) {
+                e.preventDefault();
+                //发送ajax请求.
+                getData(1, function (backData) {
+                    //改变了筛选条件,总页数有可能发生改变
+                    //调用changeTotalPages方法,根据新的总页数重新生成分页结构
+                    $('#pagination-demo').twbsPagination('changeTotalPages',
+                        backData.data.totalPage, 1);
+                });
+            })
+
+
+
+            // 删除
+            $('tbody').on('click', '.delete', function () {
+                $.ajax({
+                    url: BigNew.article_delete,
+                    type: 'post',
+                    dataType: 'json',
+                    data: {
+                        id: $(this).attr('data-id')
+                    },
+                    success: function (backData) {
+                        if (backData.code == 204) {
+                            alert('删除成功');
+                            getData(mypage, function (backData) {
+                                $('#pagination-demo').twbsPagination('changeTotalPages',
+                                    backData.data.totalPage, mypage);
+                            });
+                        } else {
+                            alert(backData.msg);
+                        }
+                    }
+                });
+            });
+        })
+    </script>
 </body>
 
 </html>

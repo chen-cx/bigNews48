@@ -209,6 +209,102 @@
     <script src="./js/template-web.js"></script>
     <script src="./js/jquery-1.12.4.min.js"></script>
 
+    <!-- 详细信息模板 -->
+    <script id="info" type="text/html">
+        {{data.authpr}} 发布于 {{data.date}}&nbsp;&nbsp;&nbsp;分类: {{data.category}}&nbsp;&nbsp;&nbsp;阅读:
+                ( {{data.read}})&nbsp;&nbsp;&nbsp;评论: ({{data.comments}})
+    </script>
+
+    <!-- 评论模板 -->
+    <script id="detail-temp" type="text/html">
+        {{each data v}}
+        <div class="comment_detail_list">
+                <div class="person_pic fl">{{v.author.substr(0,1)}}</div>
+                <div class="name_time fl"><b>{{v.author}}</b><span>{{v.date}}</span></div>
+                <div class="comment_text fl">
+                   {{v.content}}
+                </div>
+            </div>
+        {{/each}}
+    </script>
+
+    <script>
+        // 入口函数
+        $(function () {
+            let articleId = window.location.search.split('=')[1];
+            if (articleId == 'undefined') {
+                window.location.href = './index.html';
+            } else {
+                $.ajax({
+                    type: 'get',
+                    url: 'http://localhost:8080/api/v1/index/article',
+                    data: {
+                        id: articleId,
+                    },
+                    success: function (backData) {
+                        // console.log(backData);
+                        $('.breadcrumb').children('a').eq(1).text(backData.data.category);
+                        $('.article_title').text(backData.data.title);
+                        $('.article_con').html('<p>' + backData.data.content + '<br></p>');
+                        let resHtml = template('info', backData);
+                        $('.article_info').html(resHtml);
+                        if (backData.data.prev != null) {
+                            $('.article_links>a').eq(0).text(backData.data.prev.title).attr('href', './article.html?id=' + backData.data.prev.id);
+                        } else {
+                            $('.article_links>a').eq(0).text('无');
+                        }
+                        if (backData.data.next != null) {
+                            $('.article_links>a').eq(1).text(backData.data.next.title).attr('href', './article.html?id=' + backData.data.next.id)
+                        } else {
+                            $('.article_links>a').eq(1).text('无');
+                        }
+
+                    }
+                })
+            }
+
+            // 所有评论
+            $.ajax({
+                type: 'get',
+                url: 'http://localhost:8080/api/v1/index/get_comment',
+                data: {
+                    articleId: articleId,
+                },
+                success: function (backData) {
+                    console.log(backData)
+                    if (backData.code == 200) {
+                        let resHtml = template('detail-temp', backData);
+                        $('.comment_list_con').html(resHtml);
+                        $('.comment_count').text(backData.data.length + '条评论');
+                    }
+                }
+            })
+
+            // 添加评论
+            $('.comment_sub').on('click', function (e) {
+                e.preventDefault();
+                let author=$('.comment_name').val().trim();
+                let content=$('.comment_input').val().trim();
+                $.ajax({
+                    type: 'post',
+                    url: 'http://localhost:8080/api/v1/index/post_comment',
+                    data:{
+                        author:author,
+                        content:content,
+                        articleId:articleId,
+                    },
+                    success:function(backData){
+                        console.log(backData);
+                        if(backData.code==201){
+                            alert('等待管理员审核!');
+                        }
+                    }
+                })
+            })
+
+        })
+    </script>
+
 </body>
 
 </html>
